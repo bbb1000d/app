@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Study Capture",
+    "slug": "study-capture",
+    "scheme": "studycapture",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "extra": {
+      "backendUrl": "http://127.0.0.1:8000"
+    }
+  }
+}
