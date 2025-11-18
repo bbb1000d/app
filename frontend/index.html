@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Capture MVP</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0 auto;
+        padding: 1.5rem;
+        max-width: 960px;
+        background: #f5f5f5;
+      }
+      section {
+        background: white;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+      h1,
+      h2 {
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 0.5rem;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border-radius: 0.35rem;
+        border: 1px solid #c9c9c9;
+        font-size: 1rem;
+      }
+      button {
+        margin-top: 0.75rem;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 0.35rem;
+        background: #2563eb;
+        color: white;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      .captures {
+        display: grid;
+        gap: 0.5rem;
+      }
+      .capture-card {
+        border: 1px solid #ddd;
+        border-radius: 0.35rem;
+        padding: 0.75rem;
+        background: #fff;
+      }
+      .tag {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        background: #eef2ff;
+        border-radius: 0.35rem;
+        margin-right: 0.35rem;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Study Capture MVP</h1>
+    <section>
+      <h2>Capture Text Snippet</h2>
+      <label>Source (optional)</label>
+      <input id="text-source" placeholder="Notion, Chrome, Slack..." />
+      <label>Tags (comma separated)</label>
+      <input id="text-tags" placeholder="research, exam" />
+      <label>Text</label>
+      <textarea id="text-body" rows="4" placeholder="Paste copied text here"></textarea>
+      <button onclick="submitTextCapture()">Save Text Capture</button>
+    </section>
+
+    <section>
+      <h2>Upload Screenshot</h2>
+      <label>Source (optional)</label>
+      <input id="image-source" placeholder="Figma, PDF..." />
+      <label>Tags (comma separated)</label>
+      <input id="image-tags" placeholder="ocr, diagrams" />
+      <label>Screenshot</label>
+      <input id="image-file" type="file" accept="image/*" />
+      <button onclick="submitImageCapture()">Run OCR & Save</button>
+    </section>
+
+    <section>
+      <h2>Search Captures</h2>
+      <label>Keyword</label>
+      <input id="search-query" placeholder="e.g. spaced repetition" />
+      <label>Tag Filter</label>
+      <input id="search-tag" placeholder="tag name" />
+      <button onclick="runSearch()">Search</button>
+      <div id="search-results" class="captures"></div>
+    </section>
+
+    <section>
+      <h2>Latest Captures</h2>
+      <div id="latest-captures" class="captures"></div>
+    </section>
+
+    <script>
+      const apiBase = window.location.origin;
+
+      async function submitTextCapture() {
+        const payload = {
+          text: document.getElementById("text-body").value,
+          source: document.getElementById("text-source").value || null,
+          tags: parseTags(document.getElementById("text-tags").value),
+        };
+        await fetch(`${apiBase}/captures/text`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        document.getElementById("text-body").value = "";
+        refreshLatest();
+      }
+
+      async function submitImageCapture() {
+        const fileInput = document.getElementById("image-file");
+        if (!fileInput.files.length) {
+          alert("Please select an image first");
+          return;
+        }
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        formData.append("source", document.getElementById("image-source").value);
+        formData.append("tags", document.getElementById("image-tags").value);
+        await fetch(`${apiBase}/captures/image`, {
+          method: "POST",
+          body: formData,
+        });
+        fileInput.value = "";
+        refreshLatest();
+      }
+
+      async function runSearch() {
+        const query = document.getElementById("search-query").value;
+        const tag = document.getElementById("search-tag").value;
+        const params = new URLSearchParams();
+        if (query) params.append("query", query);
+        if (tag) params.append("tag", tag);
+        const res = await fetch(`${apiBase}/search?${params.toString()}`);
+        const data = await res.json();
+        renderCaptures("search-results", data.items);
+      }
+
+      async function refreshLatest() {
+        const res = await fetch(`${apiBase}/captures?limit=10`);
+        const data = await res.json();
+        renderCaptures("latest-captures", data);
+      }
+
+      function renderCaptures(elementId, captures) {
+        const container = document.getElementById(elementId);
+        container.innerHTML = "";
+        captures.forEach((capture) => {
+          const card = document.createElement("div");
+          card.className = "capture-card";
+          card.innerHTML = `
+            <strong>#${capture.id}</strong> · ${new Date(capture.created_at).toLocaleString()}<br />
+            <em>${capture.source || "unknown"}</em>
+            <p>${capture.raw_text}</p>
+            <div>${capture.tags.map((tag) => `<span class="tag">${tag}</span>`).join(" ")}</div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      function parseTags(value) {
+        return value
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+      }
+
+      refreshLatest();
+    </script>
+  </body>
+</html>
